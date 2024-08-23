@@ -10,15 +10,20 @@ interface Data {
   unitPrice: number;
   unitsSold: number;
   saleValue: number;
+  totalProfit: number;
   taxableProfit: number;
   sellOrders: any[];
 }
 
 const totals = {
   perCoin: <any>{},
-  totalPurchaseValue: 0,
-  totalSaleValue: 0,
-  totalTaxableProfit: 0,
+  taxSales: <any>[],
+  total: {
+    purchaseValue: 0,
+    grossSaleValue: 0,
+    totalProfit: 0,
+    taxableProfit: 0,
+  },
 };
 
 /**
@@ -53,6 +58,7 @@ const program = () => {
       unitPrice: Number(unitPrice),
       unitsSold: 0,
       saleValue: 0,
+      totalProfit: 0,
       taxableProfit: 0,
       sellOrders: [],
     };
@@ -81,9 +87,10 @@ const program = () => {
     }
   }
 
-  // console.log(buyData);
-  // console.log(sellData);
-  console.log(totals);
+  console.log("*** Transactional Tax Calculations ***");
+  console.log(totals.taxSales);
+  console.log("*** Totals ***");
+  console.log(totals.total);
 };
 
 const compareAndUpdateBought = (bought: Data, sold: Data) => {
@@ -103,21 +110,31 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
 
   bought.saleValue = precisionRound(bought.saleValue + valueOfSale);
   bought.unitsSold = precisionRound(bought.unitsSold + sellUnits);
+  bought.totalProfit = diff;
   bought.taxableProfit = precisionRound(bought.taxableProfit + taxableProfit);
 
-  bought.sellOrders.push({
+  const sellOrderHistory = {
+    coin: sold.coin,
+    purchaseDate: bought.date,
+    purchaseValue: precisionRound(sellUnits * bought.unitPrice),
+    purchaseUnitPrice: bought.unitPrice,
     saleValue: valueOfSale,
     unitsSold: sellUnits,
+    saleUnitPrice: sold.unitPrice,
+    saleDate: sold.date,
+    totalProft: diff,
     taxableProfit,
     capitalGainsDiscount,
-  });
+  };
+
+  bought.sellOrders.push(sellOrderHistory);
 
   sold.unitsSold = precisionRound(sold.unitsSold + sellUnits);
 
   if (!totals.perCoin[sold.coin]) {
     totals.perCoin[sold.coin] = {
       totalPurchaseValue: 0,
-      totalSaleValue: 0,
+      grossSaleValue: 0,
       totalTaxableProfit: 0,
     };
   }
@@ -127,18 +144,23 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
   cnTotal.totalPurchaseValue = precisionRound(
     cnTotal.totalPurchaseValue + valueOrBuy
   );
-  cnTotal.totalSaleValue = precisionRound(cnTotal.totalSaleValue + valueOfSale);
+  cnTotal.grossSaleValue = precisionRound(cnTotal.grossSaleValue + valueOfSale);
   cnTotal.totalTaxableProfit = precisionRound(
     cnTotal.totalTaxableProfit + taxableProfit
   );
 
-  totals.totalPurchaseValue = precisionRound(
-    totals.totalPurchaseValue + valueOrBuy
+  totals.total.purchaseValue = precisionRound(
+    totals.total.purchaseValue + valueOrBuy
   );
-  totals.totalSaleValue = precisionRound(totals.totalSaleValue + valueOfSale);
-  totals.totalTaxableProfit = precisionRound(
-    totals.totalTaxableProfit + taxableProfit
+  totals.total.grossSaleValue = precisionRound(
+    totals.total.grossSaleValue + valueOfSale
   );
+  totals.total.totalProfit = precisionRound(totals.total.totalProfit + diff);
+  totals.total.taxableProfit = precisionRound(
+    totals.total.taxableProfit + taxableProfit
+  );
+
+  totals.taxSales.push(sellOrderHistory);
 
   if (sold.unitsSold === sold.units) {
     return true; // break from buy data loop
