@@ -22,17 +22,16 @@ const totals = {
 };
 
 /**
- * Sales are calculated against the earliest purchase
+ * Sales are calculated against the earliest unsold purchase
  *  for tax purposes. Sales of assets held longer than
- *  12 months are taxed at 50% (CGT discount).
+ *  12 months are taxed at 50% (CGT discount). Taxable losses
+ *  roll into the following year(s).
  */
 
 const program = () => {
-  process.stdout.write("**** NOTICE ****\n");
   process.stdout.write(
-    "Only supports up to 10 decimal places, calculations with smaller units will fail inextricably.\n"
+    "**** NOTICE ****\nOnly supports up to 10 decimal places, calculations with smaller units will fail inextricably.\n\n"
   );
-  process.stdout.write("\n");
 
   const rawData = fs.readFileSync("./crypto-data.csv").toString();
   const rows = rawData.split(/\n/g);
@@ -71,7 +70,7 @@ const program = () => {
       if (
         bought.coin !== sold.coin ||
         bought.date > sold.date ||
-        (!!bought.unitsSold && bought.unitsSold === bought.units)
+        bought.unitsSold === bought.units
       ) {
         continue;
       }
@@ -151,11 +150,15 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
   const fy = `fy${saleYear}`;
 
   if (!totals.total[fy]) {
+    const priorFY = `fy${saleYear - 1}`;
+    const prevTaxableProfit = totals.total[priorFY]?.taxableProfit;
+    const taxableProfit = prevTaxableProfit < 0 ? prevTaxableProfit : 0;
+
     totals.total[fy] = {
       purchaseValue: 0,
       grossSaleValue: 0,
       totalProfit: 0,
-      taxableProfit: 0,
+      taxableProfit,
     };
   }
 
@@ -169,7 +172,7 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
   totals.taxSales.push(sellOrderHistory);
 
   if (sold.unitsSold === sold.units) {
-    return true; // break from buy data loop
+    return true; // break from buyData loop
   }
 
   return false;
