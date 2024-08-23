@@ -26,6 +26,8 @@ const totals = {
  *  for tax purposes. Sales of assets held longer than
  *  12 months are taxed at 50% (CGT discount). Taxable losses
  *  roll into the following year(s).
+ *
+ * Use https://github.com/MikeMcl/decimal.js for more precision
  */
 
 const program = () => {
@@ -178,6 +180,7 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
   return false;
 };
 
+// Avoid the JS float glitch
 const precisionRound = (x: number) => {
   return Math.round(x * 10000000000) / 10000000000;
 };
