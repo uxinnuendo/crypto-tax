@@ -18,12 +18,7 @@ interface Data {
 const totals = {
   perCoin: <any>{},
   taxSales: <any>[],
-  total: {
-    purchaseValue: 0,
-    grossSaleValue: 0,
-    totalProfit: 0,
-    taxableProfit: 0,
-  },
+  total: <Record<string, any>>{},
 };
 
 /**
@@ -113,6 +108,9 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
   bought.totalProfit = diff;
   bought.taxableProfit = precisionRound(bought.taxableProfit + taxableProfit);
 
+  const lastFY = sold.date.getMonth() < 6;
+  const saleYear = sold.date.getFullYear() + (lastFY ? -1 : 0);
+
   const sellOrderHistory = {
     coin: sold.coin,
     purchaseDate: bought.date,
@@ -125,6 +123,7 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
     totalProft: diff,
     taxableProfit,
     capitalGainsDiscount,
+    financialYear: saleYear,
   };
 
   bought.sellOrders.push(sellOrderHistory);
@@ -149,16 +148,23 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
     cnTotal.totalTaxableProfit + taxableProfit
   );
 
-  totals.total.purchaseValue = precisionRound(
-    totals.total.purchaseValue + valueOrBuy
-  );
-  totals.total.grossSaleValue = precisionRound(
-    totals.total.grossSaleValue + valueOfSale
-  );
-  totals.total.totalProfit = precisionRound(totals.total.totalProfit + diff);
-  totals.total.taxableProfit = precisionRound(
-    totals.total.taxableProfit + taxableProfit
-  );
+  const fy = `fy${saleYear}`;
+
+  if (!totals.total[fy]) {
+    totals.total[fy] = {
+      purchaseValue: 0,
+      grossSaleValue: 0,
+      totalProfit: 0,
+      taxableProfit: 0,
+    };
+  }
+
+  const tt = totals.total[fy];
+
+  tt.purchaseValue = precisionRound(tt.purchaseValue + valueOrBuy);
+  tt.grossSaleValue = precisionRound(tt.grossSaleValue + valueOfSale);
+  tt.totalProfit = precisionRound(tt.totalProfit + diff);
+  tt.taxableProfit = precisionRound(tt.taxableProfit + taxableProfit);
 
   totals.taxSales.push(sellOrderHistory);
 
