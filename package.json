@@ -4,8 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "dev": "nodemon index.ts",
-    "build:watch": "tsc -w -p ."
+    "start": "nodemon index.ts"
   },
   "dependencies": {
     "typescript": "^5.5.4"
