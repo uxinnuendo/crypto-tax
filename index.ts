@@ -22,6 +22,7 @@ const totals = {
   units: <any>{},
   perCoin: <any>{},
   taxSales: <any>[],
+  breakeven: <any>{},
   total: <Record<string, any>>{},
 };
 
@@ -124,6 +125,25 @@ const program = () => {
     }
   }
 
+  writeTaxReport();
+
+  // console.log("*** PRE-AUDIT (ACTIVE) ***");
+  // console.log(audit);
+  // console.log("*** PRE-AUDIT UNITS (BOUGHT) ***");
+  // console.log(totals.units);
+  // console.log("*** Transactional Tax Calculations ***");
+  // console.log(totals.taxSales);
+  console.log("*** Totals ***");
+  console.log(totals.total);
+  // console.log("*** Per Coin Sales ***");
+  // console.log(totals.perCoin);
+  console.log("*** Active Coin Units ***");
+  console.log(totals.units);
+
+  calculateBreakeven(buyData);
+};
+
+const writeTaxReport = () => {
   const csvOutput = <any>[];
 
   csvOutput.push(
@@ -152,22 +172,60 @@ const program = () => {
 
   const writeFile = "tax-report.csv";
   fs.writeFileSync("./data/" + writeFile, csvOutput.join(""));
-
-  // console.log("*** PRE-AUDIT (ACTIVE) ***");
-  // console.log(audit);
-  // console.log("*** PRE-AUDIT UNITS (BOUGHT) ***");
-  // console.log(totals.units);
-  // console.log("*** Transactional Tax Calculations ***");
-  // console.log(totals.taxSales);
-  console.log("*** Totals ***");
-  console.log(totals.total);
-  // console.log("*** Per Coin Sales ***");
-  // console.log(totals.perCoin);
-  console.log("*** Active Coin Units ***");
-  console.log(totals.units);
 };
 
-const compareAndUpdateBought = (bought: Data, sold: Data) => {
+const calculateBreakeven = (buyData: Data[]) => {
+  const coins = Object.keys(totals.units);
+
+  const updateBreakdown = (sellOrder: any) => {
+    const { coin, totalProft } = sellOrder;
+    if (!totals.breakeven[coin]) {
+      totals.breakeven[coin] = 0;
+    }
+
+    totals.breakeven[coin] = precisionRound(
+      totals.breakeven[coin] + -totalProft
+    );
+  };
+
+  for (const coin of coins) {
+    const sold: Data = {
+      coin,
+      action: "sell",
+      date: new Date(),
+      units: totals.units[coin],
+      unitPrice: 0,
+      unitsSold: 0,
+      saleValue: 0,
+      totalProfit: 0,
+      taxableProfit: 0,
+      sellOrders: [],
+    };
+
+    for (const bought of buyData) {
+      if (
+        bought.coin !== sold.coin ||
+        bought.date > sold.date ||
+        bought.unitsSold === bought.units
+      ) {
+        continue;
+      }
+
+      if (compareAndUpdateBought(bought, sold, updateBreakdown)) {
+        break;
+      }
+    }
+  }
+
+  console.log("*** Breakeven Sale Value ***");
+  console.log(totals.breakeven);
+};
+
+const compareAndUpdateBought = (
+  bought: Data,
+  sold: Data,
+  cb?: (...args: any[]) => void
+) => {
   const boughtUnitsToSell = bought.units - precisionRound(bought.unitsSold);
   const unitsSelling = sold.units - precisionRound(sold.unitsSold);
 
@@ -256,6 +314,8 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
 
   const cnUnits = totals.units[sold.coin];
   totals.units[sold.coin] = precisionRound(cnUnits - Number(sellUnits));
+
+  cb?.(sellOrderHistory);
 
   if (sold.unitsSold === sold.units) {
     return true; // break from buyData loop
