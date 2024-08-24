@@ -1,6 +1,9 @@
 import fs from "node:fs";
 
-type Action = "buy" | "sell";
+const [csvFilename] = process.argv.slice(2);
+const dataFile = csvFilename || "crypto-data.csv";
+
+type Action = "buy" | "sell" | "withdraw";
 
 interface Data {
   date: Date;
@@ -16,18 +19,25 @@ interface Data {
 }
 
 const totals = {
+  units: <any>{},
   perCoin: <any>{},
   taxSales: <any>[],
   total: <Record<string, any>>{},
 };
 
+const audit = <any>{};
+
 /**
  * Sales are calculated against the earliest unsold purchase
  *  for tax purposes. Sales of assets held longer than
  *  12 months are taxed at 50% (CGT discount). Taxable losses
- *  roll into the following year(s).
+ *  roll into the following year(s). Withdrawals are based on
+ *  BTC Markets (no unit value in report at time of withdrawal).
  *
  * Use https://github.com/MikeMcl/decimal.js for more precision
+ *
+ * TODO: Include transactional fees
+ * TODO: Export all sale transactions to CSV
  */
 
 const program = () => {
@@ -35,7 +45,7 @@ const program = () => {
     "**** NOTICE ****\nOnly supports up to 10 decimal places, calculations with smaller units will fail inextricably.\n\n"
   );
 
-  const rawData = fs.readFileSync("./crypto-data.csv").toString();
+  const rawData = fs.readFileSync(dataFile).toString();
   const rows = rawData.split(/\n/g);
 
   const sellData = <Data[]>[];
@@ -59,12 +69,43 @@ const program = () => {
       sellOrders: [],
     };
 
-    const updateObject = action === "buy" ? buyData : sellData;
+    const isBuy = action === "buy";
+    const isWithdraw = action === "withdraw";
+
+    if (isWithdraw) {
+      const cnUnits = totals.units[coin];
+      totals.units[coin] = precisionRound(cnUnits - Number(units));
+    }
+
+    const updateObject = isBuy ? buyData : sellData;
     updateObject.push(addData);
+
+    if (!totals.units[coin]) {
+      totals.units[coin] = 0;
+    }
+
+    if (isBuy) {
+      const cnUnits = totals.units[coin];
+      totals.units[coin] = precisionRound(cnUnits + Number(units));
+    }
+
+    if (!audit[coin]) {
+      audit[coin] = {
+        buy: 0,
+        sell: 0,
+        active: 0,
+      };
+    }
+
+    audit[coin][action] = precisionRound(audit[coin][action] + Number(units));
+    audit[coin].active = precisionRound(
+      audit[coin].active + (isBuy ? Number(units) : -Number(units))
+    );
   }
 
   for (const sold of sellData) {
-    if (sold.unitsSold === sold.units) {
+    const isWithdraw = sold.action === "withdraw";
+    if (isWithdraw || sold.unitsSold === sold.units) {
       continue;
     }
 
@@ -83,10 +124,47 @@ const program = () => {
     }
   }
 
-  console.log("*** Transactional Tax Calculations ***");
-  console.log(totals.taxSales);
+  const csvOutput = <any>[];
+
+  csvOutput.push(
+    `Sale Date, Financial Year, Purchase Date, Coin, Purchased Value, Purchased Unit Price, Sale Value, Units Sold, Sale Unit Price, Gross Profit\n`
+  );
+
+  for (const {
+    coin,
+    purchaseDate,
+    purchaseValue,
+    purchaseUnitPrice,
+    saleValue,
+    unitsSold,
+    saleUnitPrice,
+    saleDate,
+    totalProft,
+    financialYear,
+  } of totals.taxSales) {
+    const saleDateIso = saleDate.toISOString();
+    const purchaseDateIso = purchaseDate.toISOString();
+
+    csvOutput.push(
+      `${saleDateIso},${financialYear},${purchaseDateIso},${coin},${purchaseValue},${purchaseUnitPrice},${saleValue},${unitsSold},${saleUnitPrice},${totalProft}\n`
+    );
+  }
+
+  const writeFile = "tax-report.csv";
+  fs.writeFileSync(writeFile, csvOutput.join(""));
+
+  // console.log("*** PRE-AUDIT (ACTIVE) ***");
+  // console.log(audit);
+  // console.log("*** PRE-AUDIT UNITS (BOUGHT) ***");
+  // console.log(totals.units);
+  // console.log("*** Transactional Tax Calculations ***");
+  // console.log(totals.taxSales);
   console.log("*** Totals ***");
   console.log(totals.total);
+  // console.log("*** Per Coin Sales ***");
+  // console.log(totals.perCoin);
+  console.log("*** Active Coin Units ***");
+  console.log(totals.units);
 };
 
 const compareAndUpdateBought = (bought: Data, sold: Data) => {
@@ -97,10 +175,13 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
     unitsSelling > boughtUnitsToSell ? boughtUnitsToSell : unitsSelling
   );
 
-  const valueOrBuy = precisionRound(sellUnits * bought.unitPrice);
-  const valueOfSale = precisionRound(sellUnits * sold.unitPrice);
+  const unitPrice = bought.unitPrice || 0;
+  const soldUnitPrice = sold.unitPrice || 0;
 
-  const diff = precisionRound(valueOfSale - valueOrBuy);
+  const valueOfBuy = precisionRound(sellUnits * unitPrice);
+  const valueOfSale = precisionRound(sellUnits * soldUnitPrice);
+
+  const diff = precisionRound(valueOfSale - valueOfBuy);
   const capitalGainsDiscount = monthDiff(bought.date, sold.date) > 12;
   const taxableProfit = diff > 0 && capitalGainsDiscount ? diff / 2 : diff;
 
@@ -115,11 +196,11 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
   const sellOrderHistory = {
     coin: sold.coin,
     purchaseDate: bought.date,
-    purchaseValue: precisionRound(sellUnits * bought.unitPrice),
-    purchaseUnitPrice: bought.unitPrice,
+    purchaseValue: precisionRound(sellUnits * unitPrice),
+    purchaseUnitPrice: unitPrice,
     saleValue: valueOfSale,
     unitsSold: sellUnits,
-    saleUnitPrice: sold.unitPrice,
+    saleUnitPrice: soldUnitPrice,
     saleDate: sold.date,
     totalProft: diff,
     taxableProfit,
@@ -142,7 +223,7 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
   const cnTotal = totals.perCoin[sold.coin];
 
   cnTotal.totalPurchaseValue = precisionRound(
-    cnTotal.totalPurchaseValue + valueOrBuy
+    cnTotal.totalPurchaseValue + valueOfBuy
   );
   cnTotal.grossSaleValue = precisionRound(cnTotal.grossSaleValue + valueOfSale);
   cnTotal.totalTaxableProfit = precisionRound(
@@ -166,12 +247,15 @@ const compareAndUpdateBought = (bought: Data, sold: Data) => {
 
   const tt = totals.total[fy];
 
-  tt.purchaseValue = precisionRound(tt.purchaseValue + valueOrBuy);
+  tt.purchaseValue = precisionRound(tt.purchaseValue + valueOfBuy);
   tt.grossSaleValue = precisionRound(tt.grossSaleValue + valueOfSale);
   tt.totalProfit = precisionRound(tt.totalProfit + diff);
   tt.taxableProfit = precisionRound(tt.taxableProfit + taxableProfit);
 
   totals.taxSales.push(sellOrderHistory);
+
+  const cnUnits = totals.units[sold.coin];
+  totals.units[sold.coin] = precisionRound(cnUnits - Number(sellUnits));
 
   if (sold.unitsSold === sold.units) {
     return true; // break from buyData loop

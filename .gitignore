@@ -1,2 +1,7 @@
 node_modules
 index.js
+
+# data files
+btc-export.csv
+btc-data.csv
+tax-report.csv

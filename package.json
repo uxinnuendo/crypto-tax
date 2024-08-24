@@ -4,7 +4,9 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "nodemon index.ts"
+    "start": "nodemon index.ts --watch index.ts --watch crypto-data.csv",
+    "start:btc": "nodemon index.ts --watch index.ts --watch btc-data.csv -- btc-data.csv",
+    "convert:btc": "nodemon transpose.ts --watch transpose.ts --watch btc-export.csv -- btc-export.csv"
   },
   "dependencies": {
     "typescript": "^5.5.4"
