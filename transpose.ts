@@ -19,7 +19,7 @@ interface TransactionData {
  */
 
 const program = () => {
-  const rawData = fs.readFileSync(dataFile).toString();
+  const rawData = fs.readFileSync("./data/" + dataFile).toString();
   const rows = rawData.split(/\n/g);
 
   const processedTransactions = <TransactionData[]>[];
@@ -118,7 +118,7 @@ const program = () => {
   }
 
   const writeFile = "btc-data.csv";
-  fs.writeFileSync(writeFile, csvOutput.join(""));
+  fs.writeFileSync("./data/" + writeFile, csvOutput.join(""));
 
   console.log("**** AUDIT TOTALS ****");
   console.log(audit);

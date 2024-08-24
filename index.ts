@@ -45,7 +45,7 @@ const program = () => {
     "**** NOTICE ****\nOnly supports up to 10 decimal places, calculations with smaller units will fail inextricably.\n\n"
   );
 
-  const rawData = fs.readFileSync(dataFile).toString();
+  const rawData = fs.readFileSync("./data/" + dataFile).toString();
   const rows = rawData.split(/\n/g);
 
   const sellData = <Data[]>[];
@@ -151,7 +151,7 @@ const program = () => {
   }
 
   const writeFile = "tax-report.csv";
-  fs.writeFileSync(writeFile, csvOutput.join(""));
+  fs.writeFileSync("./data/" + writeFile, csvOutput.join(""));
 
   // console.log("*** PRE-AUDIT (ACTIVE) ***");
   // console.log(audit);
