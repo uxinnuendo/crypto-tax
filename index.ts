@@ -22,7 +22,7 @@ const totals = {
   units: <any>{},
   perCoin: <any>{},
   taxSales: <any>[],
-  breakeven: <any>{},
+  breakeven: <Record<string, any>>{},
   total: <Record<string, any>>{},
 };
 
@@ -137,7 +137,7 @@ const program = () => {
   console.log(totals.total);
   // console.log("*** Per Coin Sales ***");
   // console.log(totals.perCoin);
-  console.log("*** Active Coin Units ***");
+  console.log("*** Current Coin Assets ***");
   console.log(totals.units);
 
   calculateBreakeven(buyData);
@@ -147,7 +147,7 @@ const writeTaxReport = () => {
   const csvOutput = <any>[];
 
   csvOutput.push(
-    `Sale Date, Financial Year, Purchase Date, Coin, Purchased Value, Purchased Unit Price, Sale Value, Units Sold, Sale Unit Price, Gross Profit\n`
+    `Sale Date, Financial Year, Purchase Date, Coin, Purchased Value, Purchased Unit Price, Sale Value, Units Sold, Sale Unit Price, Gross Profit, Taxable Amount, 50% CGT Discount\n`
   );
 
   for (const {
@@ -161,12 +161,15 @@ const writeTaxReport = () => {
     saleDate,
     totalProft,
     financialYear,
+    taxableProfit,
+    capitalGainsDiscount,
+    financialYear: saleYear,
   } of totals.taxSales) {
     const saleDateIso = saleDate.toISOString();
     const purchaseDateIso = purchaseDate.toISOString();
 
     csvOutput.push(
-      `${saleDateIso},${financialYear},${purchaseDateIso},${coin},${purchaseValue},${purchaseUnitPrice},${saleValue},${unitsSold},${saleUnitPrice},${totalProft}\n`
+      `${saleDateIso},${financialYear},${purchaseDateIso},${coin},${purchaseValue},${purchaseUnitPrice},${saleValue},${unitsSold},${saleUnitPrice},${totalProft},${taxableProfit},${capitalGainsDiscount}\n`
     );
   }
 
@@ -176,15 +179,19 @@ const writeTaxReport = () => {
 
 const calculateBreakeven = (buyData: Data[]) => {
   const coins = Object.keys(totals.units);
+  const coinUnits = JSON.parse(JSON.stringify(totals.units));
 
   const updateBreakdown = (sellOrder: any) => {
     const { coin, totalProft } = sellOrder;
     if (!totals.breakeven[coin]) {
-      totals.breakeven[coin] = 0;
+      totals.breakeven[coin] = {
+        unitPrice: 0,
+        value: 0,
+      };
     }
 
-    totals.breakeven[coin] = precisionRound(
-      totals.breakeven[coin] + -totalProft
+    totals.breakeven[coin].value = precisionRound(
+      totals.breakeven[coin].value + -totalProft
     );
   };
 
@@ -215,6 +222,20 @@ const calculateBreakeven = (buyData: Data[]) => {
         break;
       }
     }
+  }
+
+  // Restore totals.units
+  totals.units = coinUnits;
+
+  for (const coin of coins) {
+    const activeUnits = totals.units[coin];
+    const sellValue = totals.breakeven[coin]?.value;
+
+    if (!sellValue) {
+      continue;
+    }
+
+    totals.breakeven[coin].unitPrice = precisionRound(sellValue / activeUnits);
   }
 
   console.log("*** Breakeven Sale Value ***");
