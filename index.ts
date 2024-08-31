@@ -43,16 +43,17 @@ const audit = <any>{};
  * Sales are calculated against the earliest unsold purchase
  *  for tax purposes. Sales of assets held longer than
  *  12 months are taxed at 50% (CGT discount). Taxable losses
- *  roll into the following year(s). Withdrawals are based on
- *  BTC Markets (no unit value in report at time of withdrawal).
+ *  roll into the following year(s).
+ *
+ * Withdrawals and deposits are based on BTC Markets ie. no unit
+ *  value is available. A withdrawal/deposit is the relocation
+ *  of an asset, it is NOT a transactional purchase, or sale.
  *
  * taxableProfit = ((gross sale value - purchase value) * 50% cgt discount) - fees
  *
- * Sale transactions from "deposit" or "reward" type assets will be
- *  100% taxableProfit, minus sale transaction fees, since we don't
+ * Sale transactions from "deposit" or "reward" type assets will contribute
+ *  100% value to taxableProfit (minus sale transaction fees) since we don't
  *  have the original purchase value data.
- *
- * Use https://github.com/MikeMcl/decimal.js for more precision
  *
  */
 
@@ -185,20 +186,20 @@ const program = () => {
 
   writeTaxReport();
 
-  // console.log("*** PRE-AUDIT (ACTIVE) ***");
+  // calculateBreakeven(buyData);
+
+  // console.log("\n*** PRE-AUDIT (ACTIVE) ***");
   // console.log(audit);
-  // console.log("*** PRE-AUDIT UNITS (BOUGHT) ***");
+  // console.log("\n*** PRE-AUDIT UNITS (BOUGHT) ***");
   // console.log(totals.units);
-  // console.log("*** Transactional Tax Calculations ***");
+  // console.log("\n*** Transactional Tax Calculations ***");
   // console.log(totals.taxSales);
-  console.log("*** Totals ***");
+  console.log("\n*** Totals ***");
   console.log(totals.total);
   // console.log("*** Per Coin Sales ***");
   // console.log(totals.perCoin);
-  console.log("*** Current Coin Assets ***");
+  console.log("\n*** Current Coin Assets ***");
   console.log(totals.units);
-
-  calculateBreakeven(buyData);
 };
 
 const getTransactionKey = (date: Date, coin: string, refId: string | null) => {
@@ -305,7 +306,7 @@ const calculateBreakeven = (buyData: Data[]) => {
     totals.breakeven[coin].unitPrice = mathDiv(sellValue, activeUnits);
   }
 
-  console.log("*** Breakeven Sale Value ***");
+  console.log("\n*** Breakeven Sale Value ***");
   console.log(totals.breakeven);
 };
 
@@ -337,8 +338,10 @@ const compareAndUpdateBought = (
 
   const diff = mathSub(valueOfSale, valueOfBuy);
   const capitalGainsDiscount = monthDiff(bought.date, sold.date) > 12;
-  const taxableProfit =
-    (diff > 0 && capitalGainsDiscount ? diff / 2 : diff) - transactionFee;
+  const taxableProfit = mathSub(
+    diff > 0 && capitalGainsDiscount ? mathDiv(diff, 2) : diff,
+    transactionFee
+  );
 
   bought.saleValue = mathAdd(bought.saleValue, valueOfSale);
   bought.unitsSold = mathAdd(bought.unitsSold, sellUnits);

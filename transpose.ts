@@ -165,7 +165,7 @@ const saveSaleTransactions = async (data: TransactionData[]) => {
     );
   }
 
-  const writeFile = "btc-data.csv";
+  const writeFile = "btc-processed-data.csv";
   fs.writeFileSync("./data/" + writeFile, csvOutput.join(""));
 };
 
