@@ -2,6 +2,7 @@ node_modules
 index.js
 
 # data files
+*.bak
 btc-export.csv
 btc-data.csv
 tax-report.csv

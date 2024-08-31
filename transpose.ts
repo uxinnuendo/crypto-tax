@@ -138,12 +138,19 @@ const program = () => {
   // process.exit();
   // return;
 
+  saveSaleTransactions(pt);
+
+  console.log("**** AUDIT TOTALS ****");
+  console.log(audit);
+};
+
+const saveSaleTransactions = async (data: TransactionData[]) => {
   const secondaryAudit = <any>{};
   const csvOutput = [];
 
-  for (const { date, action, coin, units, unitPrice } of pt) {
+  for (const { date, action, coin, units, unitPrice, refId } of data) {
     csvOutput.push(
-      `${date.toISOString()},${coin},${action},${units},${unitPrice}\n`
+      `${date.toISOString()},${coin},${action},${units},${unitPrice},${refId}\n`
     );
 
     if (!secondaryAudit[coin]) {
@@ -160,9 +167,6 @@ const program = () => {
 
   const writeFile = "btc-data.csv";
   fs.writeFileSync("./data/" + writeFile, csvOutput.join(""));
-
-  console.log("**** AUDIT TOTALS ****");
-  console.log(audit);
 };
 
 /**

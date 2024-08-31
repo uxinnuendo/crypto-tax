@@ -9,6 +9,7 @@
     "convert:btc": "nodemon transpose.ts --watch transpose.ts --watch data/btc-export.csv -- btc-export.csv"
   },
   "dependencies": {
+    "decimal.js": "^10.4.3",
     "typescript": "^5.5.4"
   },
   "devDependencies": {
