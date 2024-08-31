@@ -49,7 +49,7 @@ const audit = <any>{};
  *  value is available. A withdrawal/deposit is the relocation
  *  of an asset, it is NOT a transactional purchase, or sale.
  *
- * taxableProfit = ((gross sale value - purchase value) * 50% cgt discount) - fees
+ * taxableProfit = ((gross sale value - purchase value) x 50% cgt discount) - fees
  *
  * Sale transactions from "deposit" or "reward" type assets will contribute
  *  100% value to taxableProfit (minus sale transaction fees) since we don't

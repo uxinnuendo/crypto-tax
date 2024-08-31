@@ -174,7 +174,7 @@ const saveSaleTransactions = async (data: TransactionData[]) => {
 /**
  * Sell: Coin row contains "Fully matched" | "Partially matched"
  *  "Partially matched": Unit value comes from tail end 'at x.xx'
- *  "Fully matched" with no trailing "at x.xx": Take unit value from "@ AUD 555.00000000"
+ *  "Fully matched" with no trailing "at x.xx": Take unit value from "@ AUD x.xx"
  * Buy: Coin row contains "Trade settled"
  *  Unit value comes from '@ AUD x.xx'
  */
