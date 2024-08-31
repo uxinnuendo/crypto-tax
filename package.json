@@ -6,7 +6,8 @@
   "scripts": {
     "start": "nodemon index.ts --watch index.ts --watch data/crypto-data.csv",
     "start:btc": "nodemon index.ts --watch index.ts --watch data/btc-processed-data.csv -- btc-processed-data.csv",
-    "convert:btc": "nodemon transpose.ts --watch transpose.ts --watch data/btc-export.csv -- btc-export.csv"
+    "convert:btc": "nodemon transpose.ts --watch transpose.ts --watch data/btc-export.csv -- btc-export.csv true",
+    "btc-markets": "ts-node transpose.ts btc-export.csv && ts-node index.ts btc-processed-data.csv"
   },
   "dependencies": {
     "decimal.js": "^10.4.3",

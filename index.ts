@@ -58,10 +58,6 @@ const audit = <any>{};
  */
 
 const program = () => {
-  process.stdout.write(
-    "**** NOTICE ****\nOnly supports up to 10 decimal places, calculations with smaller units will fail inextricably.\n\n"
-  );
-
   const rawData = fs.readFileSync("./data/" + dataFile).toString();
   const rows = rawData.split(/\n/g);
 

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-const [csvFilename] = process.argv.slice(2);
+const [csvFilename, showAudit] = process.argv.slice(2);
 const dataFile = csvFilename || "crypto-export.csv";
 
 interface TransactionData {
@@ -140,8 +140,10 @@ const program = () => {
 
   saveSaleTransactions(pt);
 
-  console.log("**** AUDIT TOTALS ****");
-  console.log(audit);
+  if (showAudit) {
+    console.log("**** AUDIT TOTALS ****");
+    console.log(audit);
+  }
 };
 
 const saveSaleTransactions = async (data: TransactionData[]) => {
@@ -216,10 +218,6 @@ const getUnitPrice = (
 // Avoid the JS float glitch
 const prec = (x: number) => {
   return Math.round(x * 1e10) / 1e10;
-};
-
-const precCurrency = (x: number) => {
-  return Math.floor(x * 1e8) / 1e8;
 };
 
 program();
