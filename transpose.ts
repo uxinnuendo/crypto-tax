@@ -15,8 +15,10 @@ interface TransactionData {
 
 /**
  * Basic reformatting script for BTC Markets transaction export
- * TODO: Include transactional fees
+ * TODO: Handling for Fund transfers?
  */
+
+const transactionRefIdCoin = <Record<string, string>>{};
 
 const program = () => {
   const rawData = fs.readFileSync("./data/" + dataFile).toString();
@@ -42,24 +44,38 @@ const program = () => {
       refId,
     ] = row.split(",");
 
+    const _id = Number(id);
+
     const actionMap = <Record<string, string>>{
       "Buy Order": "buy",
       "Sell Order": "sell",
-      // "Trading Fee": "fee",
-      Withdraw: "withdraw",
+      "Trading Fee": "fee",
+      Withdraw: "withdraw", // Remove units from current total
+      Deposit: "deposit", // Add units to current total
+      // Reward: "reward", // Add units to current total
     };
 
     const action = actionMap[actionType];
 
     const isSell = action === "sell";
+    const isBuy = action === "buy";
+    const isFee = action === "fee";
+    const isReward = action === "reward";
     const isWithdraw = action === "withdraw";
+    const isDeposit = action === "deposit";
 
-    if (!isWithdraw && (recordType !== "Trade" || !action)) {
+    if (
+      !isWithdraw &&
+      !isDeposit &&
+      !isFee &&
+      (recordType !== "Trade" || !action)
+    ) {
       continue;
     }
 
     const coin = currency.toLowerCase();
     const units = isSell || isWithdraw ? -Number(amount) : Number(amount);
+
     const unitPrice =
       getUnitPrice(action, description, {
         units,
@@ -67,16 +83,35 @@ const program = () => {
         balance,
       }) || null;
 
-    if (coin === "aud" || (!isWithdraw && !unitPrice && action !== "fee")) {
+    if (
+      (coin === "aud" && !isFee) ||
+      (!isWithdraw && !isDeposit && !unitPrice && action !== "fee")
+    ) {
       continue;
     }
+
+    if (isBuy || isSell) {
+      transactionRefIdCoin[refId] = coin;
+    }
+
+    /**** Debug */
+    // if (isFee) {
+    //   process.stdout.write("-------\n");
+    //   process.stdout.write(coin + "\n");
+    //   process.stdout.write(recordType + "\n");
+    //   process.stdout.write(String(isWithdraw) + "\n");
+    //   process.stdout.write(String(unitPrice) + "\n");
+    //   process.stdout.write(action + "\n");
+    //   process.stdout.write(units + "\n");
+    // }
+    // continue;
 
     const record = <TransactionData>{
       date: new Date(dateStr),
       action,
-      coin,
-      units,
-      unitPrice,
+      coin: isFee ? transactionRefIdCoin[refId] : coin,
+      units: isFee ? null : units,
+      unitPrice: isFee ? -parseFloat(amount) : unitPrice,
       refId,
     };
 
@@ -85,6 +120,7 @@ const program = () => {
         buy: 0,
         sell: 0,
         withdraw: 0,
+        deposit: 0,
         active: 0,
       };
     }
@@ -96,6 +132,11 @@ const program = () => {
 
     pt.push(record);
   }
+
+  /**** Debug */
+  // console.log(audit);
+  // process.exit();
+  // return;
 
   const secondaryAudit = <any>{};
   const csvOutput = [];
@@ -126,7 +167,8 @@ const program = () => {
 
 /**
  * Sell: Coin row contains "Fully matched" | "Partially matched"
- *  Unit value comes from tail end 'at x.xx'
+ *  "Partially matched": Unit value comes from tail end 'at x.xx'
+ *  "Fully matched" with no trailing "at x.xx": Take unit value from "@ AUD 555.00000000"
  * Buy: Coin row contains "Trade settled"
  *  Unit value comes from '@ AUD x.xx'
  */
@@ -137,7 +179,8 @@ const getUnitPrice = (
   extra: any
 ): number => {
   switch (action) {
-    case "buy": {
+    case "buy":
+    case "deposit": {
       if (!description.includes("Trade settled")) {
         return 0;
       }
@@ -147,12 +190,19 @@ const getUnitPrice = (
     }
     case "sell":
     case "withdraw": {
+      const coin = extra.coin.toUpperCase();
       if (action === "sell" && !/(Fully|Partially) matched/.test(description)) {
         return 0;
       }
 
-      const [, unitPrice] = description.match(/matched at ([\d.]*)/) || [];
-      return Number(unitPrice);
+      const [, unitPriceAtEnd] = description.match(/matched at ([\d.]*)/) || [];
+      if (Number(unitPriceAtEnd)) {
+        return Number(unitPriceAtEnd);
+      }
+
+      const beginWithRegex = new RegExp(`@ AUD ([\\d.]*)`);
+      const [, unitPriceAt] = description.match(beginWithRegex) || [];
+      return Number(unitPriceAt);
     }
   }
 

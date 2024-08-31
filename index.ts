@@ -37,8 +37,9 @@ const audit = <any>{};
  *
  * Use https://github.com/MikeMcl/decimal.js for more precision
  *
- * TODO: Include transactional fees
- * TODO: Export all sale transactions to CSV
+ * TODO: Remove deposit (and withrawals)
+ * TODO: Check deposits are calculated correctly in sale totals (ie. USDT)
+ * TODO: Subtract transaction fees from profit totals
  */
 
 const program = () => {
@@ -57,6 +58,16 @@ const program = () => {
 
     const [dateStr, coin, action, units, unitPrice] = row.split(",");
 
+    const isBuy = action === "buy";
+    const isDeposit = action === "deposit";
+    const isWithdrawal = action === "withdrawal";
+    const isFee = action === "fee";
+    const isWithdraw = action === "withdraw";
+
+    if (isDeposit || isWithdrawal || isFee) {
+      continue;
+    }
+
     const addData: Data = {
       date: new Date(dateStr),
       coin,
@@ -69,9 +80,6 @@ const program = () => {
       taxableProfit: 0,
       sellOrders: [],
     };
-
-    const isBuy = action === "buy";
-    const isWithdraw = action === "withdraw";
 
     if (isWithdraw) {
       const cnUnits = totals.units[coin];
